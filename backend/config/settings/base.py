@@ -36,9 +36,9 @@ def env_list(name: str, default: str = "") -> list[str]:
 
 
 # SECURITY
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-only-change-me")
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 DEBUG = False
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
