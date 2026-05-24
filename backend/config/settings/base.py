@@ -4,9 +4,11 @@ Shared by development and production.
 """
 
 import os
+import ssl
 from datetime import timedelta
 from pathlib import Path
 import sys
+import dj_database_url
 import asyncio
 
 from dotenv import load_dotenv
@@ -172,18 +174,28 @@ SIMPLE_JWT = {
 
 
 # DATABASE
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "leadgen_saas_db"),
-        "USER": os.getenv("POSTGRES_USER", "leadgen_user"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "leadgen_password_123"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-        "CONN_MAX_AGE": int(os.getenv("POSTGRES_CONN_MAX_AGE", "60")),
-    }
-}
+DATABASE_URL = os.getenv("DATABASE_URL")
 
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=int(os.getenv("POSTGRES_CONN_MAX_AGE", "60")),
+            ssl_require=True,
+        )
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "leadgen_saas_db"),
+            "USER": os.getenv("POSTGRES_USER", "leadgen_user"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "leadgen_password_123"),
+            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+            "CONN_MAX_AGE": int(os.getenv("POSTGRES_CONN_MAX_AGE", "60")),
+        }
+    }
 
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [
@@ -226,15 +238,10 @@ EXPORT_MAX_SYNC_ROWS = int(os.getenv("EXPORT_MAX_SYNC_ROWS", "500"))
 EXPORT_RETENTION_DAYS = int(os.getenv("EXPORT_RETENTION_DAYS", "7"))
 
 # CELERY / REDIS
-CELERY_BROKER_URL = os.getenv(
-    "CELERY_BROKER_URL",
-    "redis://localhost:6379/0",
-)
+REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6380/0")
 
-CELERY_RESULT_BACKEND = os.getenv(
-    "CELERY_RESULT_BACKEND",
-    "redis://localhost:6379/0",
-)
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
 
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = int(os.getenv("CELERY_TASK_TIME_LIMIT", "3600"))
@@ -242,6 +249,19 @@ CELERY_TASK_SOFT_TIME_LIMIT = int(os.getenv("CELERY_TASK_SOFT_TIME_LIMIT", "3300
 CELERY_WORKER_PREFETCH_MULTIPLIER = int(
     os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "1")
 )
+
+# Required for Upstash / TLS Redis URLs that start with rediss://
+# Upstash TLS Redis support
+if CELERY_BROKER_URL.startswith("rediss://"):
+    CELERY_BROKER_USE_SSL = {
+        "ssl_cert_reqs": ssl.CERT_NONE,
+    }
+
+if CELERY_RESULT_BACKEND.startswith("rediss://"):
+    CELERY_REDIS_BACKEND_USE_SSL = {
+        "ssl_cert_reqs": ssl.CERT_NONE,
+    }
+
 
 CELERY_BEAT_SCHEDULE = {
     "cleanup-all-users-data-daily": {
@@ -270,18 +290,76 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-import os
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6380/0")
+# DJANGO CHANNELS / WEBSOCKET
+CHANNEL_LAYERS_REDIS_URL = os.getenv("CHANNEL_LAYERS_REDIS_URL", REDIS_URL)
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [REDIS_URL],
+            "hosts": [CHANNEL_LAYERS_REDIS_URL],
         },
     },
 }
+
+# # CELERY / REDIS
+# CELERY_BROKER_URL = os.getenv(
+#     "CELERY_BROKER_URL",
+#     "redis://localhost:6379/0",
+# )
+
+# CELERY_RESULT_BACKEND = os.getenv(
+#     "CELERY_RESULT_BACKEND",
+#     "redis://localhost:6379/0",
+# )
+
+# CELERY_TASK_TRACK_STARTED = True
+# CELERY_TASK_TIME_LIMIT = int(os.getenv("CELERY_TASK_TIME_LIMIT", "3600"))
+# CELERY_TASK_SOFT_TIME_LIMIT = int(os.getenv("CELERY_TASK_SOFT_TIME_LIMIT", "3300"))
+# CELERY_WORKER_PREFETCH_MULTIPLIER = int(
+#     os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "1")
+# )
+
+# CELERY_BEAT_SCHEDULE = {
+#     "cleanup-all-users-data-daily": {
+#         "task": "apps.leads.tasks.cleanup_all_users_data_task",
+#         "schedule": 60 * 60 * 24,
+#     },
+#     "finalize-enrichment-jobs-every-5-minutes": {
+#         "task": "apps.leads.tasks.finalize_enrichment_jobs_task",
+#         "schedule": 60 * 5,
+#     },
+#     "monitoring-health-check-every-5-minutes": {
+#         "task": "apps.monitoring.tasks.monitoring_health_check_task",
+#         "schedule": 60 * 5,
+#     },
+#     "auto-resolve-old-info-events-daily": {
+#         "task": "apps.monitoring.tasks.auto_resolve_old_info_events_task",
+#         "schedule": 60 * 60 * 24,
+#     },
+#     "cleanup-old-system-events-weekly": {
+#         "task": "apps.monitoring.tasks.cleanup_old_system_events_task",
+#         "schedule": 60 * 60 * 24 * 7,
+#     },
+#     "finalize-ai-jobs-every-5-minutes": {
+#         "task": "apps.ai.tasks.finalize_ai_jobs_task",
+#         "schedule": 60 * 5,
+#     },
+# }
+
+# import os
+
+# REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6380/0")
+
+# CHANNEL_LAYERS = {
+#     "default": {
+#         "BACKEND": "channels_redis.core.RedisChannelLayer",
+#         "CONFIG": {
+#             "hosts": [REDIS_URL],
+#         },
+#     },
+# }
 
 # CHANNEL_LAYERS = {
 #     "default": {
