@@ -34,6 +34,8 @@ from .views import (
     ClearSearchLeadsAPIView,
     
     TestRealtimeAPIView,
+    
+    ExtensionImportLeadsAPIView,
 )
 
 
@@ -140,5 +142,14 @@ urlpatterns = [
         "lists/<int:list_id>/remove/<int:lead_id>/",
         RemoveLeadFromListAPIView.as_view(),
         name="lead_list_remove",
+    ),
+    
+    # =====================================================
+    # Chrome Extension Import
+    # =====================================================
+    path(
+        "extension/import-leads/",
+        ExtensionImportLeadsAPIView.as_view(),
+        name="extension_import_leads",
     ),
 ]
