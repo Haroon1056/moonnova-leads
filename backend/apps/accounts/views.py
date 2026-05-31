@@ -2,6 +2,9 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth import logout
 from datetime import timedelta
+import logging
+from django.core.mail import send_mail
+from django.conf import settings
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -49,22 +52,16 @@ def build_verification_link(request, token):
     return f"{frontend_url}/verify-email/{token.token}"
 
 
+logger = logging.getLogger(__name__)
+
+
 def send_verification_email(user, verification_link):
-    """
-    Basic email verification sender.
-
-    This uses Django email settings.
-    You need SMTP settings in settings.py for real sending.
-    """
-
-    from django.core.mail import send_mail
-
-    subject = "Verify your LeadGen Pro account"
+    subject = "Verify your MoonNova Leads account"
 
     message = f"""
 Hi {user.full_name},
 
-Please verify your email address to activate your LeadGen Pro account.
+Please verify your email address to activate your MoonNova Leads account.
 
 Verification link:
 {verification_link}
@@ -72,16 +69,22 @@ Verification link:
 This link will expire in 24 hours.
 
 Thanks,
-LeadGen Pro Team
+MoonNova Leads Team
 """
 
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-        recipient_list=[user.email],
-        fail_silently=True,
-    )
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[user.email],
+            fail_silently=False,
+            timeout=10,
+        )
+        logger.info("Verification email sent to %s", user.email)
+
+    except Exception:
+        logger.exception("Failed to send verification email to %s", user.email)
 
 
 class RegisterAPIView(APIView):
