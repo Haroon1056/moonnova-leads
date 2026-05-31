@@ -79,7 +79,7 @@ MoonNova Leads Team
             from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
             recipient_list=[user.email],
             fail_silently=False,
-            timeout=10,
+            # timeout=10,
         )
         logger.info("Verification email sent to %s", user.email)
 
