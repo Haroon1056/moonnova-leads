@@ -414,6 +414,7 @@ DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",
     "LeadGen Pro <noreply@leadgenpro.com>",
 )
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 
 
 # GOOGLE LOGIN
